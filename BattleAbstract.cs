@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -39,8 +39,8 @@ namespace TS_Server.Server
         public int dmg_max = 60000;
 
 
-        protected List<Tuple<byte, byte>> hitedList; //ลิสของตัวที่ถูกโจมตี
-        protected List<Tuple<byte, byte>> comboList; //ลิสของผู้โจมตี (อาจจะ 1 ตัวหรือมากกว่า)
+        protected List<Tuple<byte, byte>> hitedList = new List<Tuple<byte, byte>>(); //ลิสของตัวที่ถูกโจมตี
+        protected List<Tuple<byte, byte>> comboList = new List<Tuple<byte, byte>>(); //ลิสของผู้โจมตี (อาจจะ 1 ตัวหรือมากกว่า)
 
         protected BattleAbstract()
         {
@@ -143,6 +143,28 @@ namespace TS_Server.Server
 
         public void beginBattle()
         {
+            ////Logger.Info("beginBattle");
+            //if (btThread != null && (btThread.ThreadState & System.Threading.ThreadState.Running) == System.Threading.ThreadState.Running)
+            //{
+            //    //Logger.Error("destroy btThread ID " + btThread.ManagedThreadId);
+            //    btThread.Abort();
+            //    btThread.Join();
+            //}
+
+            //btThread = new System.Threading.Thread(start_round);
+            //btThread.IsBackground = true;
+            //btThread.Name = "battle_execute";
+            //btThread.Start();
+            ////Logger.Success("start btThread ID "+ System.Threading.Thread.CurrentThread.ManagedThreadId);
+            /////
+
+            //new System.Threading.Thread(start_round)
+            //{
+            //    IsBackground = true
+            //}.Start();
+            //Logger.Info("Thread(start_round)");
+
+            //Logger.Info("beginBattle --- START ROUND");
             if (map == null)
                 endBattle(false);
             else
@@ -211,6 +233,34 @@ namespace TS_Server.Server
             //Logger.Error("registerCommand " + type.ToString());
             if (!aTimer.Enabled || position[init_row][init_col].alreadyCommand) return;
 
+            #region # Fix ex bot F1 last enemy
+            if (dest_row > 3 || dest_col > 4)
+            {
+                if (init_row < 2)
+                {
+                    for (byte i = 2; i < 4; i++)
+                        for (byte j = 0; j < 5; j++)
+                            if (position[i][j].exist && !position[i][j].death)
+                            {
+                                dest_row = i;
+                                dest_col = j;
+                                break;
+                            }
+                }
+                else
+                {
+                    for (byte i = 0; i < 2; i++)
+                        for (byte j = 0; j < 5; j++)
+                            if (position[i][j].exist && !position[i][j].death)
+                            {
+                                dest_row = i;
+                                dest_col = j;
+                                break;
+                            }
+                }
+            }
+            #endregion
+
             battleBroadcast(new PacketCreator(new byte[] { 0x35, 5, init_row, init_col }).send());
             if (init_row > 3 || init_col > 4 || dest_row > 3 || dest_col > 4)
             {
@@ -260,7 +310,7 @@ namespace TS_Server.Server
                 sk_id = 21028;
             }
 
-            if (type == 0 && SkillData.skillList.ContainsKey(sk_id)) //บอทมันส่งแปลกๆมา ต้องฟิลเตอร์ให้มันถูกต้องซะก่อน
+            if(type == 0 && SkillData.skillList.ContainsKey(sk_id)) //บอทมันส่งแปลกๆมา ต้องฟิลเตอร์ให้มันถูกต้องซะก่อน
             {
                 SkillInfo skillInfo = SkillData.skillList[sk_id];
                 byte effect;
@@ -326,6 +376,21 @@ namespace TS_Server.Server
             }
 
             BattleCommand cmd = new BattleCommand(init_row, init_col, dest_row, dest_col, type);
+            //ushort[] cri = bp_init.getCritical();
+            //ushort cri_dmg = cri[0];
+            //ushort cri_agi = cri[1];
+            //if(cri_dmg > 0)
+            //{
+            //    int rnd_cri_dmg = RandomGen.getInt(0, 101);
+            //    if (cri_dmg >= rnd_cri_dmg)
+            //        cmd.criticalDmg = 2;
+            //}
+            //if(cri_agi > 0)
+            //{
+            //    int rnd_cri_agi = RandomGen.getInt(0, 101);
+            //    if (cri_agi >= rnd_cri_agi)
+            //        cmd.criticalAgi = 2;
+            //}
 
             bp_init.alreadyCommand = true;
             if (type == 0)
@@ -489,21 +554,49 @@ namespace TS_Server.Server
 
         public void executeThread()
         {
-            new System.Threading.Thread(execute)
-            {
-                IsBackground = true
-            }.Start();
+            execute();
+
+            //if (btThread != null && (btThread.ThreadState & System.Threading.ThreadState.Running) == System.Threading.ThreadState.Running)
+            //{
+            //    btThread.Abort();
+            //    btThread.Join();
+            //}
+
+            //btThread = new System.Threading.Thread(execute);
+            ////btThread.IsBackground = true;
+            //btThread.Name = "battle_execute";
+            //btThread.Start();
+
+            //new System.Threading.Thread(execute)
+            //{
+            //    IsBackground = true
+            //}.Start();
         }
 
         public void execute() // spartannnnnn!!!!!
         {
             executing = true;
+            //cmdReg = cmdReg.OrderByDescending(n => n.priority).ToList(); //เรียงไว
             cmdReg = cmdReg.Where(n => n != null).OrderByDescending(n => n.archery).ThenByDescending(n => n.priority).ToList(); //เรียงไว
+            //if (btThread == null)
+            //{
+            //    for(int i = 0; i < 4; i++)
+            //        for(int j = 0; j < 5; j++)
+            //        {
+            //            if(position[i][j].exist && position[i][j].chr != null)
+            //                outBattle(position[i][j].chr.client);
+            //        }
+            //}
+
+            //Logger.Error("execute");
             BattleParticipant init, dest;
             nextcmd = 0;
-
             aTimer.Stop();
-            System.Threading.Thread.Sleep(200); //<< ของเดิมถ่วงเวลาก่อนโดดตีครึ่งวินาที (1 วินาที = 1000 millisec)
+            System.Threading.Thread.Sleep(200); //<< เปลี่ยนเป็น 200 เพื่อให้ทันใจวัยรุ่น
+
+            //cmdReg = cmdReg.OrderBy(c => c.priority).Reverse().ToList();
+            //cmdReg = (from n in cmdReg orderby n.priority descending select n).ToList(); //ใช้อัันี้ต้องไปแก้ที่ pushCommand ด้วย
+            //cmdReg = cmdReg.OrderByDescending(n => n.priority).ToList(); //ลองดูแบบนี้ หรือต้องในที่ pushCommand อย่างเดียวหว่า
 
             while (nextcmd < cmdReg.Count)
             {
@@ -525,7 +618,7 @@ namespace TS_Server.Server
                     if (init.exist && init.disable == 0 && !init.death)
                     {
                         //if (!dest.exist || dest.death || dest.buff_type == 13005 || dest.buff_type == 13025 || (dest.type == TSConstants.BT_POS_TYPE_CHR && dest.chr.client.disconnecting) || (dest.type == TSConstants.BT_POS_TYPE_PET && dest.pet.owner.client.disconnecting)) //auto choose another target if former one not available
-                        if (!dest.exist || dest.death || dest.getHiding() || (dest.type == TSConstants.BT_POS_TYPE_CHR && dest.chr.client.disconnecting) || (dest.type == TSConstants.BT_POS_TYPE_PET && dest.pet.owner.client.disconnecting)) //auto choose another target if former one not available
+                        if (!dest.exist || dest.death || dest.getHiding() || (dest.type == TSConstants.BT_POS_TYPE_CHR) || (dest.type == TSConstants.BT_POS_TYPE_PET)) //auto choose another target if former one not available
                         {
                             bool change_target = changeTarget(cmd);
                             if (change_target) // target is changable
@@ -539,13 +632,17 @@ namespace TS_Server.Server
 
                     for (int i = 0; i < hitedList.Count; i++)
                     {
-                        if (hitedList[i] != null && hitedList[i].Item1 != null && hitedList[i].Item2 != null)
+                        if (hitedList[i] != null)
                         {
                             byte row = hitedList[i].Item1;//มีปัญหาเด้ง
                             byte col = hitedList[i].Item2;
+                            //SkillInfo skillInfo = SkillData.skillList[c.skill];
+                            //string txt = Encoding.Default.GetString(skillInfo.name, 0, skillInfo.namelength);
+                            //Console.WriteLine("Hited [{0}][{1}]", row, col);
                             checkDeath(row, col);
                         }
                     }
+                    //Console.WriteLine("--------------");
                 }
                 catch (Exception e)
                 {
@@ -553,8 +650,15 @@ namespace TS_Server.Server
                     finish = 2;
                 }
             }
+
+            //reflectSpSubLeader();
+            //if (init.type == 1 && init.chr.party != null && init.chr.party.subleader_id > 0)
+
+            //Logger.Error("nextcmd " + nextcmd + "/" + cmdReg.Count);
+            //ฮีล หรือชุบส่งท้าย
             if (nextcmd < cmdReg.Count)
             {
+                //Logger.SystemWarning("Have cmd " + (cmdReg.Count - nextcmd));
                 for (int i = nextcmd; i < cmdReg.Count; i++)
                 {
                     BattleCommand c = cmdReg[i];
@@ -571,7 +675,10 @@ namespace TS_Server.Server
                     }
                 }
             }
+
+            //Logger.Info("execute --- START ROUND");
             start_round();
+            //เด้ง sp ถ้ามีเสนา int num96 = (int)Math.Round((double)num95 / 15.0);
         }
 
         public bool changeTarget(BattleCommand c)
@@ -814,7 +921,7 @@ namespace TS_Server.Server
                 //if (c.type == 0) System.Threading.Thread.Sleep(SkillData.skillList[c.skill].delay * 80);
                 int mul_delay = TSServer.config.battle_speed;
                 int final_delay = 1000; //1s
-                if (finish == 3) //หนี
+                if(finish == 3) //หนี
                 {
                     final_delay = 500;
                 }
@@ -840,7 +947,7 @@ namespace TS_Server.Server
                 for (byte i = 0; i < 4; i++)
                     for (byte j = 0; j < 5; j++)
                     {
-                        if (position[i][j].outBattle)
+                        if (position[i][j].outBattle) 
                             checkOutBattle(position[i][j]);
 
                         position[i][j].checkCommandEffect();
@@ -1049,7 +1156,18 @@ namespace TS_Server.Server
                 TSServer.config.damage_divide.target_7,
                 TSServer.config.damage_divide.target_8,
             };
-            comboList.Add(new Tuple<byte, byte>(c.init_row, c.init_col));//มีปัญหาเด้ง
+            if (c.init_row < position.Length && c.init_col < position[c.init_row].Length)
+            {
+                comboList.Add(new Tuple<byte, byte>(c.init_row, c.init_col));
+            }
+            else
+            {
+                // จัดการกับกรณีที่ c.init_row หรือ c.init_col อยู่นอกขอบเขตที่อนุญาต
+                Console.WriteLine("Error: The row or column index is out of range.");
+                // คุณสามารถเพิ่มโค้ดเพื่อจัดการกับข้อผิดพลาดนี้ตามที่ต้องการ
+                // ตัวอย่างเช่น การบันทึกข้อผิดพลาด, การคืนค่าเริ่มต้น, หรือการยกเลิกการดำเนินการ
+            }
+
             switch (nb_target)
             {
                 case 8: //กวาด 10
@@ -1166,7 +1284,7 @@ namespace TS_Server.Server
                             if (j >= 0 && j < 5)
                             {
                                 BattleParticipant bp_near = position[c.dest_row][j];
-                                if (bp_near.exist && !bp_near.death)
+                                if(bp_near.exist && !bp_near.death)
                                     near_col = (byte)j;
                             }
                             //Console.WriteLine("near_pos {0}", near_col);
@@ -1254,7 +1372,15 @@ namespace TS_Server.Server
 
             if (skillInfo.nb_target > 0)
             {
-                Tuple<byte, byte> tmp = hitedList.FirstOrDefault(e => e != null && e.Item1 == row && e.Item2 == col);//มีปัญหาเด้ง
+                Tuple<byte, byte> tmp = null;
+                try
+                {
+                    tmp = hitedList.FirstOrDefault(e => e.Item1 == row && e.Item2 == col);//มีปัญหาเด้ง
+                }
+                catch
+                {
+                    tmp = null;
+                }
                 if (tmp == null)
                 {
                     hitedList.Add(new Tuple<byte, byte>(row, col));
@@ -1306,17 +1432,17 @@ namespace TS_Server.Server
                 ///[จอมยุทธ]พลังจิตอ่านใจศัตรู 14045
                 ///ขณะที่ใกล้ตายมีโอกาสหลบการโจมตีได้ระดับหนึ่ง มีผลเมื่อเลือดเหลือน้อยกว่า30%
                 if (
-                    (effect == 1 || effect == 2)
+                    (effect == 1 || effect == 2) 
                     && c.skill != 14054 //ไม่ใช่ผ่า
-                    && dest.getSkillLvl(14045) > 0
-                    && dest.getHp() <= (dest.getMaxHp() * 0.3)
+                    && dest.getSkillLvl(14045) > 0 
+                    && dest.getHp() <= (dest.getMaxHp() * 0.3) 
                     && RandomGen.getInt(0, 101) < SkillData.skillList[14045].unk19)
                 {
                     hit = 0;
                     battleBroadcast(new PacketCreator(new byte[] { 0x35, 0x0C, dest.row, dest.col }).send()); //พริ้วลอยติ้วววววว
                     //Console.WriteLine("Miss because skill 14045");
                 }
-                else if (c.skill == 14054)//สายฟ้าลงทัณฑ์
+                else if(c.skill == 14054)//สายฟ้าลงทัณฑ์
                 {
                     hit = 1;
                 }
@@ -1360,7 +1486,7 @@ namespace TS_Server.Server
                             //0=โดน, 1=กัน, 2=miss
                             dest_anim = 0;
                             //สายฟ้าลงทัณฑ์
-                            if (c.skill == 14054)
+                            if (c.skill == 14054) 
                             {
                                 //final_dmg = dest.getHp() - 1;
                                 //fixed_dmg = dest.getHp() - 1;
@@ -1375,15 +1501,15 @@ namespace TS_Server.Server
                                     int rnd = randomize.getInt(1, 101);
                                     if ((rnd - (c.skill_lvl * 2)) > SkillData.skillList[14054].unk19)
                                     {
-                                        row = init.row;
-                                        col = init.col;
+                                        row= init.row;
+                                        col= init.col;
                                         dest = position[init.row][init.col];
                                     }
                                 }
                                 fixed_dmg = dest.getHp() - 1;
                             }
                             //ม่านคุ้มกัน
-                            else if (dest.buff_type == 10010 || dest.buff == 10031)
+                            else if (dest.buff_type == 10010 || dest.buff == 10031) 
                             {
                                 final_dmg = 0;
                                 dest_anim = 1;
@@ -1552,7 +1678,7 @@ namespace TS_Server.Server
                             //checkDeath(row, col, c); //ต้องย้ายไปเช็คืั้หลังจากออกตี execute
 
                             //ถ้าเป้าหมายยังไม่ตาย ก็มาสุ่มพวกสกิลดาเมจ+ติดสถานะ
-                            if (!dest.death)
+                            if (!dest.death) 
                             {
                                 bool hit_disable = false;
                                 if (dest.disable <= 0 && hit_disable_state.Contains(skillInfo.state) && final_dmg > 0 && !dest.isNpcBoss())
@@ -1748,25 +1874,23 @@ namespace TS_Server.Server
                 case 11: // tha luoi -_- จับศัตตรู จับศัตรู | ตาข่ายจับศัตรู | จับศัตรูสำเร็จ | ก้อนข้าวจับตาข่าย | ก้อนข้าวจับสำเร็จ
                     {
                         if (CatchPet(init, dest))
-                            if (init.chr != null)
-                               if (dest.npc != null)
-                                {
-                                    c.skill = 15003;
-                                    init.chr.addPet((ushort)dest.npc.npcid, 0, 1, "BT Catch");
-                                    dest.outBattle = true;
-                                    dest_anim = 0;
-                                    effect_code = 0x19;
-                                    NpcInfo npcInfo = NpcData.npcList[dest.npc.npcid];
-                                    if (npcInfo.doanhtrai >= 1 && npcInfo.doanhtrai <= 5)
-                                    {                            
-                                            int value = init.chr.moral[npcInfo.doanhtrai - 1];
-                                            value += npcInfo.level;
-                                            value = Math.Min(value, 5000);
-                                            init.chr.moral[npcInfo.doanhtrai - 1] = (ushort)value;
-                                            init.chr.refreshMoral();
-                                        
-                                    }
-                                }
+                        {
+                            c.skill = 15003;
+                            init.chr.addPet((ushort)dest.npc.npcid, 0, 1, "BT Catch");
+                            dest.outBattle = true;
+                            // Chua sua effect -.-
+                            dest_anim = 0;
+                            effect_code = 0x19;
+                            NpcInfo npcInfo = NpcData.npcList[dest.npc.npcid];
+                            if (npcInfo.doanhtrai >= 1 && npcInfo.doanhtrai <= 5)
+                            {
+                                int value = init.chr.moral[npcInfo.doanhtrai - 1];
+                                value += npcInfo.level;
+                                value = Math.Min(value, 5000);
+                                init.chr.moral[npcInfo.doanhtrai - 1] = (ushort)value;
+                                init.chr.refreshMoral();
+                            }
+                        }
                         break;
                     }
                 case 12: // run
@@ -2195,10 +2319,10 @@ namespace TS_Server.Server
                         //พลังจิตอ่านใจศัตรู
                         if (dest.getSkillLvl(14045) > 0)
                         {
-                            if (
-                                 //c.skill != 14054 //skill ไม่ใช่ผ่า
+                            if(
+                                //c.skill != 14054 //skill ไม่ใช่ผ่า
                                  dest.getHp() <= (dest.getMaxHp() * 0.3) //เลือดเหลือน้อยกว่า 30%
-                                                                         //&& randomize.getInt(0, 101) < SkillData.skillList[14045].unk19
+                                 //&& randomize.getInt(0, 101) < SkillData.skillList[14045].unk19
                                  && randomize.getInt(0, 101) < 30
                             )
                             {
@@ -2240,7 +2364,7 @@ namespace TS_Server.Server
                         int range_lv = init.getLvl() - dest.getLvl();
                         int perhit = 198 + range_lv; //เวลเท่ากัน hit 95%
                         perhit = Math.Min(perhit, 200); //โอกาสติดสูงสุดไม่เกิน 100%
-                        perhit = Math.Max(perhit, 185); //โอกาสติดต่ำสุดไม่เกิน 80%
+                        perhit = Math.Max(perhit, 160); //โอกาสติดต่ำสุดไม่เกิน 80%
                         int rnd = randomize.getInt(0, 201);
                         if (perhit >= rnd) return 1;
                         return (byte)(perhit >= rnd ? 1 : 0);
@@ -2370,7 +2494,7 @@ namespace TS_Server.Server
                 case 12: // run
                     {
                         c.dmg = 0;
-                        if (init.type != TSConstants.BT_POS_TYPE_CHR) return 0;
+                        if(init.type != TSConstants.BT_POS_TYPE_CHR) return 0;
                         if (SkillData.skillList[c.skill].sp_cost > 0)
                             return 1;
 
@@ -2379,7 +2503,7 @@ namespace TS_Server.Server
                         int final_run = rnd + range_lvl + 100;
                         //Console.WriteLine($"calculateHit [{c.init_row}][{c.init_col}] หนี {rnd} + ({range_lvl}) = {final_run}");
                         return (byte)(final_run > 100 ? 1 : 0);
-
+                        
                     }
                 case 13: //item, later
                     {
@@ -2413,7 +2537,7 @@ namespace TS_Server.Server
                         //if (dest.death) return 0;
                         //if (dest.debuff_type != 0) return 0;
                         //if (dest.isNpcBoss()) return 0; //npc พิเศษ จับ debuff ไม่ได้จ้า
-                        if (
+                        if(
                             dest.death
                             || dest.debuff_type != 0
                             || init.getStunID() > 0 //ติดมึน
@@ -2553,7 +2677,7 @@ namespace TS_Server.Server
 
         public bool sameSide(byte row1, byte row2)
         {
-            if (row1 > 3 || row2 > 3) return false; //เผื่อหลุดมา
+            if(row1 > 3 || row2 > 3) return false; //เผื่อหลุดมา
             if (row1 < 2 && row2 < 2) return true;
             if (row1 >= 2 && row2 >= 2) return true;
             return false;
@@ -2565,7 +2689,7 @@ namespace TS_Server.Server
         {
             for (int i = 0; i < 4; i += 3)
                 for (int j = 0; j < 5; j++)
-                    if (position[i][j].exist && position[i][j].type == TSConstants.BT_POS_TYPE_CHR && !position[i][j].chr.client.disconnecting)
+                    if (position[i][j].exist && position[i][j].type == TSConstants.BT_POS_TYPE_CHR)
                     {
                         //Logger.Warning(position[i][j].chr.name);
                         position[i][j].chr.reply(msg);
@@ -2736,7 +2860,7 @@ namespace TS_Server.Server
                     BattleParticipant bp = position[i][j];
                     if (bp.exist && bp.type == TSConstants.BT_POS_TYPE_CHR && bp.chr != null && bp.chr.client.accID == c.accID)
                     {
-
+                        
                         if (bp.chr.party == null || bp.chr.isTeamLeader())
                         {
                             //sendExitStreamers();
@@ -2896,7 +3020,7 @@ namespace TS_Server.Server
         {
             if (position[3][2].chr != null)
             {
-                for (int i = 0; i < this.charViewList.Count; i++)
+                for(int i = 0; i < this.charViewList.Count; i++)
                 {
                     uint vId = this.charViewList[i];
                     TSClient vClient = TSServer.getInstance().getPlayerById((int)vId);
@@ -3287,10 +3411,6 @@ namespace TS_Server.Server
                 //Logger.Error("Has sena " + sbuLeaderId + ", int "+ subLeaderMag + ", dmgSp "+ dmgSp + ", current sp: "+bp.getSp());
             }
         }
-
-
-
-
 
         public void destroyBattle()
         {

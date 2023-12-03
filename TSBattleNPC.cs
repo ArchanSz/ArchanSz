@@ -20,9 +20,6 @@ namespace TS_Server.Server
     {
         public ushort npcmapid = 65000; //pk NPC only
         public EveBattle eveMapBattle;
-        private byte dest_row;
-        private byte dest_col;
-        private int skill;
 
         public TSBattleNPC(TSClient c, byte type, ushort npc_mapid, ushort[] listNPC) : base(c, type)
         {
@@ -248,7 +245,7 @@ namespace TS_Server.Server
         {
             //Console.WriteLine("start_round " + countAlly);
             //Logger.Error(btThread.Name);
-            int dl = finish == 0 ? 800 : 100;
+            int dl = 300;
             System.Threading.Thread.Sleep(dl);
             executing = false;
             roundCount += 1;
@@ -429,137 +426,150 @@ namespace TS_Server.Server
                 seekTargetV3(row, col);
             }
         }
-        public void seekTarget(byte row, byte col) // AI in position (row, col) seeking for its target :)))
+
+        public void seekTarget(byte row, byte col) //AI in position (row, col) seeking for its target :)))
         {
             byte dest_row = 5;
             byte dest_col = 5;
             int skill = 10000;
 
+
             ushort id = (ushort)position[row][col].npc.npcid;
             NpcInfo npcInfo = NpcData.npcList[id];
+            //List<int[]> skill_list = new List<int[]>();
+            //skill_list.Add(new int[] { 10000, 0 }); //มือเปล่า
             List<int[]> npc_filter_skills = new List<int[]>() //[id, skill_type, grade]
-    {
-        new int[] { 10000, SkillData.skillList[10000].skill_type, SkillData.skillList[10000].grade },
-        skillBattleFilter(npcInfo.skill1,npcInfo),
-        skillBattleFilter(npcInfo.skill2,npcInfo),
-        skillBattleFilter(npcInfo.skill3,npcInfo),
-        skillBattleFilter(npcInfo.skill4,npcInfo),
-    };
+            {
+                new int[] { 10000, SkillData.skillList[10000].skill_type, SkillData.skillList[10000].grade },
+                skillBattleFilter(npcInfo.skill1,npcInfo),
+                skillBattleFilter(npcInfo.skill2,npcInfo),
+                skillBattleFilter(npcInfo.skill3,npcInfo),
+                skillBattleFilter(npcInfo.skill4,npcInfo),
+            };
 
-            npc_filter_skills = npc_filter_skills.Where(x => x[0] != 0 && x[1] != 0).ToList();
+            npc_filter_skills = npc_filter_skills.Where(x => x[0] != 0 && x[1] != 0).ToList(); //เอาสกิล passive ออก
 
-            skill = seekSkill(npc_filter_skills);
+            //if (npcInfo.skill1 > 0) skill_list.Add(new int[] { npcInfo.skill1, 0 });
+            //if (npcInfo.skill2 > 0) skill_list.Add(new int[] { npcInfo.skill2, 0 });
+            //if (npcInfo.skill3 > 0) skill_list.Add(new int[] { npcInfo.skill3, 0 });
+            //if (npcInfo.skill4 > 0) skill_list.Add(new int[] { npcInfo.skill4, 0 });
 
+            bool test = false;
+            if (test)//ชั่วคราว เทสให้มอนยิงสกิลเดิมๆ รัวๆ
+            {
+                skill = 10000;
+            }
+            else
+            {
+                skill = seekSkill(npc_filter_skills);
+            }
             byte type = SkillData.skillList[(ushort)skill].skill_type;
             List<BattleParticipant> death_list = new List<BattleParticipant>();
-
-            if (type == 8)
+            if (type == 8) //ถ้าสุ่มได้สกิลชุบ ให้รีเช็คมอนตัวอื่นอีกทีว่ามีตายมั้ย
             {
-                CheckDeathList(death_list);
-                if (death_list.Count == 0)
+                for(int i = 0; i < 2; i++)
+                    for(int j = 0; j < 5; j++)
+                        if(position[i][j].exist && position[i][j].death)
+                            death_list.Add(position[i][j]);
+
+                if(death_list.Count == 0) //ถ้าไม่มีมอนตายเลยก็เอาสกิลชุบออกและสุ่มสกิลใหม่
                 {
                     List<int[]> new_skill_list = npc_filter_skills.Where(s => s[0] != 11013).ToList();
                     skill = seekSkill(new_skill_list);
+                    //type = SkillData.skillList[(ushort)skill].skill_type;
                 }
             }
 
+            //int rand = RandomGen.getInt(0, 100);
+            //// 20% skill4, else 25% skill 3, else 33% skill 2, else 50% skill1, else attack
+            //if (NpcData.npcList[id].skill4 != 0 && rand % 5 == 0)
+            //    skill = NpcData.npcList[id].skill4;
+            //else if (NpcData.npcList[id].skill3 != 0 && rand % 4 == 0)
+            //    skill = NpcData.npcList[id].skill3;
+            //else if (NpcData.npcList[id].skill2 != 0 && rand % 3 == 0)
+            //    skill = NpcData.npcList[id].skill2;
+            //else if (NpcData.npcList[id].skill1 != 0 && rand % 2 == 0)
+            //    skill = NpcData.npcList[id].skill1;
             byte r = 2;
             byte nb_row = 2;
-            if (IsSupportiveSkill(type)) r = 0;
-            if (IsNeutralSkill(type)) { nb_row = 4; r = 0; }
+            if (type == 4 || type == 6 || type == 7 || type == 14 || type == 19) r = 0; //4 บัพ, 6 ฮิล SP, 7 ฮิล HP, 14 ฮิล HP/SP, 19 ออร่า แสดงว่าต้องฝั่งเมอนเท่านั้น
+            if (type == 5 || type == 18) { nb_row = 4; r = 0; } //พวกสกิลสลาย กับเชิญน้ำ แสดงว่าใส่ได้ทั้ง 2 ฝ่าย
 
             if (type != 8)
             {
-                List<byte[]> pos_ready = GetReadyPositions(r, nb_row);
+                List<byte[]> pos_ready = new List<byte[]>();
+                for (byte i = r; i < (r + nb_row); i++)
+                {
+                    for (byte j = 0; j < 5; j++)
+                    {
+                        bool founded = position[i][j].exist && !position[i][j].death;
+                        //Logger.Info(string.Format("position[{0}][{1}] {2}", i, j, founded));
+                        if (founded)
+                            pos_ready.Add(new byte[] { i, j });
+                    }
+                }
                 if (pos_ready.Count > 0)
                 {
                     int idx = randomize.getInt(0, pos_ready.Count);
                     dest_row = pos_ready[idx][0];
                     dest_col = pos_ready[idx][1];
+
+                    //Logger.Info(string.Format("[{0}][{1}] ATTACT [{2}][{3}]", row, col, dest_row, dest_col));
                 }
                 else
                 {
-                    HandleNoAvailablePosition(row, col, type, skill);
+                    BattleParticipant bp_chr = position[3][2];
+                    string owner_info = string.Empty;
+                    if (bp_chr != null && bp_chr.chr != null)
+                    {
+                        owner_info = bp_chr.chr.client.accID + " " + bp_chr.chr.name;
+                    }
+                    Logger.Warning(string.Format("{0} {1} seekTarget ({2}){3} ไม่เจอคน แปลกจัง", DateTime.Now.ToString(), owner_info, type, skill));
+                    dest_row = row;
+                    dest_col = col;
+                    skill = 17001; //ป้องกัน
+                    //endBattle(false);
+                    finish = 2;
                 }
             }
-            else
+            else //type 8 = วิชาฟื้นคืนชีพ
             {
-                HandleResurrectionSkill(death_list, ref dest_row, ref dest_col, row, col);
-            }
+                if (death_list.Count == 0) //เป็นไปไม่ได้หรอก แต่กันไว้ก่อน
+                {
+                    dest_row = row;
+                    dest_col = col;
+                    skill = 17001; //ป้องกัน
+                }
+                else
+                {
+                    BattleParticipant bp_death;
+                    int idx = 0;
+                    if (death_list.Count == 1)
+                        idx = 0;
+                    if (death_list.Count > 1)
+                        idx = randomize.getInt(0, death_list.Count);
+                    bp_death = death_list[idx];
 
-            if (skill == 10016 || skill == 11016 || skill == 12016 || skill == 13015)
+                    dest_row = bp_death.row;
+                    dest_col = bp_death.col;
+                }
+                //for (int i = 0; i < 2; i++)
+                //    for (int j = 0; j < 5; j++)
+                //        if (position[i][j].exist && position[i][j].death)
+                //        {
+                //            dest_row = (byte)(i);
+                //            dest_col = (byte)(j);
+                //            break;
+                //        }
+            }
+            if (dest_row == 5) { dest_row = 0; dest_col = 0; }
+
+            if (skill == 10016 || skill == 11016 || skill == 12016 || skill == 13015) //NPC trieu goi lvl 10 อัญเชิญ 4 ธาตุ
                 skill += 3;
 
+            //if (row == 0) dest_row = 1; //test only
             pushCommand(row, col, dest_row, dest_col, 0, (ushort)skill);
-        }
-
-        private void CheckDeathList(List<BattleParticipant> death_list)
-        {
-            for (int i = 0; i < 2; i++)
-                for (int j = 0; j < 5; j++)
-                    if (position[i][j].exist && position[i][j].death)
-                        death_list.Add(position[i][j]);
-        }
-
-        private bool IsSupportiveSkill(byte type)
-        {
-            return type == 4 || type == 6 || type == 7 || type == 14 || type == 19;
-        }
-
-        private bool IsNeutralSkill(byte type)
-        {
-            return type == 5 || type == 18;
-        }
-
-        private List<byte[]> GetReadyPositions(byte r, byte nb_row)
-        {
-            List<byte[]> pos_ready = new List<byte[]>();
-            for (byte i = r; i < (r + nb_row); i++)
-            {
-                for (byte j = 0; j < 5; j++)
-                {
-                    if (position[i][j].exist && !position[i][j].death)
-                        pos_ready.Add(new byte[] { i, j });
-                }
-            }
-            return pos_ready;
-        }
-
-        private void HandleNoAvailablePosition(byte row, byte col, byte type, int skill)
-        {
-            BattleParticipant bp_chr = position[3][2];
-            string owner_info = string.Empty;
-            if (bp_chr != null && bp_chr.chr != null)
-            {
-                owner_info = bp_chr.chr.client.accID + " " + bp_chr.chr.name;
-            }
-            Logger.Warning(string.Format("{0} {1} seekTarget ({2}){3} ไม่เจอคน แปลกจัง", DateTime.Now.ToString(), owner_info, type, skill));
-            dest_row = row;
-            dest_col = col;
-            skill = 17001;
-            finish = 2;
-        }
-        private void HandleResurrectionSkill(List<BattleParticipant> death_list, ref byte dest_row, ref byte dest_col, byte row, byte col)
-        {
-            if (death_list.Count == 0)
-            {
-                dest_row = row;
-                dest_col = col;
-                skill = 17001;
-            }
-            else
-            {
-                BattleParticipant bp_death;
-                int idx = 0;
-                if (death_list.Count == 1)
-                    idx = 0;
-                if (death_list.Count > 1)
-                    idx = randomize.getInt(0, death_list.Count);
-                bp_death = death_list[idx];
-
-                dest_row = bp_death.row;
-                dest_col = bp_death.col;
-            }
+            //pushCommand(row, col, 3, 2, 0, 20014); //test only
         }
         public void seekTargetV2(byte row, byte col) //AI in position (row, col) seeking for its target :)))
         {
@@ -751,62 +761,67 @@ namespace TS_Server.Server
                     }
                 }
             }
-            if (rate_skill_list == null || rate_skill_list.Count == 0)
+
+            //Console.WriteLine("rate_skill_list: {0}", rate_skill_list.Count);
+            if (rate_skill_list.Count == 0)
             {
+                //Logger.Warning(row+"\t"+col+"\trate_skill_list.Count == 0");
                 dest_row = row;
                 dest_col = col;
-                skill = 17001; // ป้องกัน
+                skill = 17001; //ป้องกัน
             }
             else
             {
                 int total = rate_skill_list.Sum(el => el[3]);
-                int formula = 0;
+                int formular = 0;
                 int rnd = randomize.getInt(0, total);
+                //Console.WriteLine("rnd {0}/{1}", rnd, total);
                 bool chk = false;
-
                 foreach (int[] pos in rate_skill_list)
                 {
-                    formula += pos[3];
 
-                    if (!chk && formula >= rnd)
+                    //Console.WriteLine("{0}{1}", sk_name, string.Join("\t", pos));
+                    formular += pos[3];
+                    if (!chk && formular >= rnd)
                     {
                         skill = pos[0];
                         dest_row = (byte)pos[1];
                         dest_col = (byte)pos[2];
-
-                        if (pos.Length == 5) // แสดงว่าใช้ยัน
+                        if (pos.Length == 5) //แสดงว่าใช้ยัน
                         {
                             type_sk = (byte)pos[4];
                         }
-
                         chk = true;
                         break;
+                        //Console.Write("> ");
                     }
                 }
             }
 
-            // ถ้าเกิน 4 แถว หรือ 5 คอลัมน์ ให้กดกันซะ
+            //ถ้าเกิน 4 แถว หรือ 5 คอลัมน์ ให้กดกันซะ
             if (dest_row > 3 || dest_col > 4)
             {
                 Logger.Warning("BT flood row:" + dest_row + ", col:" + dest_col);
                 dest_row = row;
                 dest_col = col;
-                skill = 17001; // ป้องกัน 
+                skill = 17001; //ป้องกัน 
             }
 
-            if (skill == 10016 || skill == 11016 || skill == 12016 || skill == 13015) // NPC trieu goi lvl 10 อัญเชิญ 4 ธาตุ
-            {
+            if (skill == 10016 || skill == 11016 || skill == 12016 || skill == 13015) //NPC trieu goi lvl 10 อัญเชิญ 4 ธาตุ
                 skill += 3;
-                // Uncomment below lines if needed:
-                // dest_row = row;
-                // dest_col = col;
-                // type_sk = 0;
-                // skill = 13005;
+
+            //สหรับทดสอบฟิกให้มอนยิงสกิล
+            {
+                //dest_row = row;
+                //dest_col = col;
+                //type_sk = 0;
+                //skill = 13005;
             }
+
 
             pushCommand(row, col, dest_row, dest_col, type_sk, (ushort)skill);
+            //Console.WriteLine("seekTarget {0}\tpos[{1}][{2}]", skill, dest_row, dest_col);
         }
-
         public void seekTargetV3(byte row, byte col)
         {
             byte dest_row = 4;
@@ -829,6 +844,8 @@ namespace TS_Server.Server
             if (npcInfo.skill3 > 0) skill_list.Add(npcInfo.skill3);
             if (npcInfo.skill4 > 0) skill_list.Add(npcInfo.skill4);
 
+            //Console.WriteLine("{0}", string.Join(", ", skill_list));
+
             int ai_level = TSServer.config.npc_ai_level;
             int score_base = 100;
             int score_low = score_base / 2;
@@ -845,7 +862,8 @@ namespace TS_Server.Server
                 14046, //เกราะคุ้มลมปราณ
                 10010, //ม่านคุ้มกัน
             };
-			
+
+            //Dictionary<byte, List<BattleParticipant>> post_list = new Dictionary<byte, List<BattleParticipant>>();
             List<Tuple<BattleParticipant, ushort, int, byte>> dest_list = new List<Tuple<BattleParticipant, ushort, int, byte>>();
             foreach (ushort skill_id in skill_list)
             {
@@ -950,6 +968,7 @@ namespace TS_Server.Server
                                 }
                                 else
                                 {
+                                    //List<BattleParticipant> player_hiding = bp_alive.Where(e => e.row >= 2 && e.getHiding()).ToList();
                                     switch (effect)
                                     {
                                         case 1: goto case 2;
@@ -1059,6 +1078,8 @@ namespace TS_Server.Server
                 }
             }
 
+
+
             if (dest_list != null && dest_list.Count > 0)
             {
                 int formular = 0;
@@ -1082,6 +1103,9 @@ namespace TS_Server.Server
                         break;
                         //Console.Write("> ");
                     }
+
+                    //Console.WriteLine("[{0}][{1}] {2} {3}\t[{4}][{5}] = {6}", init.row, init.col, b.Item2, sk_name, b.Item1.row, b.Item1.col, b.Item3);
+
                 }
             }
 
@@ -1101,7 +1125,7 @@ namespace TS_Server.Server
 
             if (skill == 10016 || skill == 11016 || skill == 12016 || skill == 13015) //NPC trieu goi lvl 10 อัญเชิญ 4 ธาตุ
                 skill += 3;
-				
+
             //สหรับทดสอบฟิกให้มอนยิงสกิล
             {
                 //dest_row = row;
@@ -1113,7 +1137,14 @@ namespace TS_Server.Server
 
             pushCommand(row, col, dest_row, dest_col, type_sk, (ushort)skill);
         }
-
+        /// <summary>
+        /// Adding Positon
+        /// </summary>
+        /// <param name="bp_list">BattleParticipant list can hit skill</param>
+        /// <param name="skill">Skill ID</param>
+        /// <param name="score">Score</param>
+        /// <param name="type_use_item">0 = skill; 1 = use item;</param>
+        /// <returns></returns>
         private Tuple<BattleParticipant, ushort, int, byte> seekTargetV3AddScore(List<BattleParticipant> bp_list, ushort skill, int score, byte type_use_item = 0)
         {
             if (bp_list != null && bp_list.Count > 0)
@@ -1385,7 +1416,7 @@ namespace TS_Server.Server
             NpcInfo npcInfo = init.npc.getNpcInfo();
             bool init_type_ore = init.npc != null && npcInfo.type == 16; //npc แร่
             ushort sk_mining_id = 14010;
-            if (dest.type == TSConstants.BT_POS_TYPE_CHR && !dest.chr.client.disconnecting)
+            if (dest.type == TSConstants.BT_POS_TYPE_CHR)
             {
                 byte sk_mining_lv = dest.chr.skill.ContainsKey(sk_mining_id) ? dest.chr.skill[sk_mining_id] : (byte)0; //Level skill วิชาขุดแร่
                 bool allow_drop = true;
@@ -1407,7 +1438,7 @@ namespace TS_Server.Server
                     battleBroadcast(p.send());
                 }
             }
-            else if (dest.type == TSConstants.BT_POS_TYPE_PET && !dest.pet.owner.client.disconnecting)
+            else if (dest.type == TSConstants.BT_POS_TYPE_PET)
             {
                 byte sk_mining_lv = dest.pet.owner.skill.ContainsKey(sk_mining_id) ? dest.pet.owner.skill[sk_mining_id] : (byte)0; //Level skill วิชาขุดแร่
                 bool allow_drop = true;
@@ -1776,17 +1807,21 @@ namespace TS_Server.Server
 
             int[,] exp_gain = new int[2, 5];
             int[,] exp_soul_gain = new int[2, 5];
-            for (int i = 0; i < 2; i++)
-            {
-                for (int j = 0; j < 5; j++)
-                {
-                    BattleParticipant bp_npc = position[i][j];
-                    if (win && bp_npc != null && bp_npc.npc != null && bp_npc.type == TSConstants.BT_POS_TYPE_NPC && bp_npc.exist && battle_type == 3)
+            try {
+                for (int i = 0; i < 2; i++) {
+                    for (int j = 0; j < 5; j++)
                     {
-                        calcExp(ref exp_gain, ref exp_soul_gain, bp_npc, 0); //calc exp for attacker
-                        calcExp(ref exp_gain, ref exp_soul_gain, bp_npc, 1); //calc exp for killer
+                        BattleParticipant bp_npc = position[i][j];
+                        if (win && bp_npc != null && bp_npc.npc != null && bp_npc.type == TSConstants.BT_POS_TYPE_NPC && bp_npc.exist && battle_type == 3)
+                        {
+                            calcExp(ref exp_gain, ref exp_soul_gain, bp_npc, 0); //calc exp for attacker
+                            calcExp(ref exp_gain, ref exp_soul_gain, bp_npc, 1); //calc exp for killer
+                        }
                     }
                 }
+            }
+            catch (Exception e) {
+                Console.WriteLine(e.ToString());
             }
 
             sendCharExitView();
@@ -1973,38 +2008,24 @@ namespace TS_Server.Server
                     //increase lucky badge duration or set broken
                     if (has_lucky_badge)
                     {
-                        if (chr.equipment[5] != null)
-                            if (chr.equipment[5].duration < 250)//มีปัญหาเด้ง
-                            {
-                                chr.equipment[5].duration += 1;
-                                chr.equipment[5].refreshDuration();
-                            }
-                            else
-                            {
-                                chr.equipment[5].setBroken();
-                            }
-                    }
-                    //เก่า
-                    //Console.WriteLine("[{0}][{1}]endBattle count {2}", bp_chr.row, bp_chr.col, bp_chr.autoBoxUsedCrystal.Count);
-                    //for (int a = 0; a < bp_chr.autoBoxUsedCrystal.Count; a++)
-                    // {
-                    //Console.WriteLine("endBattle {0}", bp_chr.autoBoxUsedCrystal[a]);
-                    //bp_chr.autoBoxDropCrystal(bp_chr.autoBoxUsedCrystal[a], 1);
-                    ///}
-                    ///
-                    for (int a = 0; a < bp_chr.autoBoxUsedCrystal.Count; a++)
-                    {
-                        if (bp_chr.autoBoxUsedCrystal[a] != null)
+                        if (chr.equipment[5].duration < 250)
                         {
-                            bp_chr.autoBoxDropCrystal(bp_chr.autoBoxUsedCrystal[a], 1);
+                            chr.equipment[5].duration += 1;
+                            chr.equipment[5].refreshDuration();
                         }
                         else
                         {
-                            // ทำบางอย่างเมื่อข้อมูลในอาร์เรย์เป็น null
-                            Console.WriteLine("Found null data at index {0}", a);
+                            chr.equipment[5].setBroken();
                         }
                     }
 
+
+                    //Console.WriteLine("[{0}][{1}]endBattle count {2}", bp_chr.row, bp_chr.col, bp_chr.autoBoxUsedCrystal.Count);
+                    for (int a = 0; a < bp_chr.autoBoxUsedCrystal.Count; a++)
+                    {
+                        //Console.WriteLine("endBattle {0}", bp_chr.autoBoxUsedCrystal[a]);
+                        bp_chr.autoBoxDropCrystal(bp_chr.autoBoxUsedCrystal[a], 1);
+                    }
 
                     if (chr != null)
                     {
@@ -2135,7 +2156,7 @@ namespace TS_Server.Server
                     finish = 3;
                 }
             }
-            
+
             //send battle result to event
             if (chrLeader != null && chrLeader.myEvent != null && chrLeader.myEvent.clickId > 0)
             {
@@ -2159,32 +2180,32 @@ namespace TS_Server.Server
             aTimer.Stop();
             //aTimer.Dispose();
 
-            if (fly_to_save.Count() > 0) //บินกลับเซฟ
-            {
-                foreach(uint acc_id in fly_to_save)
-                {
-                    TSClient _cl = TSServer.getInstance().getPlayerById((int)acc_id);
-                    if(_cl != null)
-                    {
-                        TSCharacter _ch = _cl.getChar();
-                        if (_ch != null)
-                        {
-                            if(_ch.party != null)
-                            {
-                                if(_ch.party.leader_id == acc_id)
-                                {
-                                    _ch.party.Disband(_ch);
-                                }
-                                else
-                                {
-                                    _ch.party.LeaveTeam(_ch);
-                                }
-                            }
-                            _cl.sendWarpToXY(_ch.saved_map_id, _ch.saved_map_x, _ch.saved_map_y);
-                        }
-                    }
-                }
-            }
+            // if (fly_to_save.Count() > 0) //บินกลับเซฟ
+            // {
+            //     foreach(uint acc_id in fly_to_save)
+            //     {
+            //         TSClient _cl = TSServer.getInstance().getPlayerById((int)acc_id);
+            //         if(_cl != null)
+            //         {
+            //             TSCharacter _ch = _cl.getChar();
+            //             if (_ch != null)
+            //             {
+            //                 if(_ch.party != null)
+            //                 {
+            //                     if(_ch.party.leader_id == acc_id)
+            //                     {
+            //                         _ch.party.Disband(_ch);
+            //                     }
+            //                     else
+            //                     {
+            //                         _ch.party.LeaveTeam(_ch);
+            //                     }
+            //                 }
+            //                 _cl.sendWarpToXY(_ch.saved_map_id, _ch.saved_map_x, _ch.saved_map_y);
+            //             }
+            //         }
+            //     }
+            // }
         }
         /// <summary>
         /// type 0=Attacker, 1=Killer
@@ -2367,77 +2388,49 @@ namespace TS_Server.Server
 
         public void npcReinforcement(BattleParticipant bp) //มอนแจม
         {
-            try
+            if (bp.exist && bp.death && bp.npc != null)
             {
-                if (bp.npc != null)
+                if (bp.npc.reinforcement != null && bp.npc.reinforcement.Count > 0 && bp.npc.reinIndex < bp.npc.reinforcement.Count)
                 {
-                    if (bp.exist)
-                    {
-                        if (bp.death)
+                    ///////
+                    foreach (Tuple<byte, byte> k in bp.npc.killer)
+                        if (k != null)
                         {
-                            if (bp.npc.reinforcement != null)
+                            giveMoral(position[k.Item1][k.Item2], bp);
+                            if (bp.npc.drop != 0)
                             {
-                                if (bp.npc.reinforcement.Count > 0 && bp.npc.reinIndex < bp.npc.reinforcement.Count)
-                                {
-                                    ///////
-                                    foreach (Tuple<byte, byte> k in bp.npc.killer)
-                                        if (k != null)
-                                        {
-                                            giveMoral(position[k.Item1][k.Item2], bp);
-                                            if (bp.npc != null)
-                                            {
-                                                if (bp.npc.drop != 0)
-                                                {
-                                                    //Console.WriteLine("ดรอบ {0} ก่อนตัวซ้อนจะมา", bp.npc.drop);
-                                                    giveDrop(bp.npc.drop, bp.row, bp.col, k.Item1, k.Item2);
-                                                }
-                                            }
-                                        }
-                                    //////
-                                    List<ushort> reinforcement = bp.npc.reinforcement;
-                                    int rein_index = bp.npc.reinIndex + 1;
-                                    //Logger.Error(string.Join(", ", position[i][j].npc.reinforcement.ToArray()));
-                                    if (bp.npc.reinIndex < bp.npc.reinforcement.Count)
-                                    {
-
-                                        if (bp.npc != null)
-                                        {
-                                            if (bp.npc.reinforcement[bp.npc.reinIndex] > 0)
-                                            {
-                                                countEnemy++;
-                                                battleBroadcast(new PacketCreator(new byte[] { 0x0b, 0x01, bp.row, bp.col }).send());
-                                                ushort npc_id = bp.npc.reinforcement[bp.npc.reinIndex];
-                                                BattleNpcAI ai = new BattleNpcAI(this, countEnemy, npc_id);
-                                                bp.npcIn(ai);
-                                                bp.npc.reinforcement = reinforcement;
-                                                bp.npc.reinIndex = rein_index;
-                                                bp.death = false;
-                                                var p2 = new PacketCreator(0x0B, 0x05);
-                                                p2.addBytes(bp.announce(5, countEnemy).getData());
-                                                //Logger.SystemWarning(BitConverter.ToString(p2.getData()));
-                                                battleBroadcast(p2.send());
-                                                finish = 0;
-
-                                                PacketCreator p3 = new PacketCreator(0x35, 0x06);
-                                                p3.addByte(1);
-                                                p3.add32(npc_id);
-                                                p3.add32(npc_id);
-                                                battleBroadcast(p3.send());
-                                            }
-                                        }
-
-                                    }
-                                }
+                                //Console.WriteLine("ดรอบ {0} ก่อนตัวซ้อนจะมา", bp.npc.drop);
+                                giveDrop(bp.npc.drop, bp.row, bp.col, k.Item1, k.Item2);
                             }
                         }
+                    //////
+                    List<ushort> reinforcement = bp.npc.reinforcement;
+                    int rein_index = bp.npc.reinIndex + 1;
+                    //Logger.Error(string.Join(", ", position[i][j].npc.reinforcement.ToArray()));
+                    if (bp.npc.reinIndex < bp.npc.reinforcement.Count)
+                    {
+                        countEnemy++;
+                        battleBroadcast(new PacketCreator(new byte[] { 0x0b, 0x01, bp.row, bp.col }).send());
+                        ushort npc_id = bp.npc.reinforcement[bp.npc.reinIndex];
+                        BattleNpcAI ai = new BattleNpcAI(this, countEnemy, npc_id);
+                        bp.npcIn(ai);
+                        bp.npc.reinforcement = reinforcement;
+                        bp.npc.reinIndex = rein_index;
+                        bp.death = false;
+                        var p2 = new PacketCreator(0x0B, 0x05);
+                        p2.addBytes(bp.announce(5, countEnemy).getData());
+                        //Logger.SystemWarning(BitConverter.ToString(p2.getData()));
+                        battleBroadcast(p2.send());
+                        finish = 0;
+
+                        PacketCreator p3 = new PacketCreator(0x35, 0x06);
+                        p3.addByte(1);
+                        p3.add32(npc_id);
+                        p3.add32(npc_id);
+                        battleBroadcast(p3.send());
                     }
                 }
             }
-            catch
-            {
-
-            }
-            
         }
 
     }

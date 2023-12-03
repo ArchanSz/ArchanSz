@@ -114,15 +114,15 @@ namespace TS_Server.Server
         /// <param name="y"></param>
         public void warp(TSClient client, ushort mapid, ushort x, ushort y)
         {
-            var p = new PacketCreator(0x0C);
-            p.add32(client.accID);
-            p.add16(mapid);
-            p.add16(client.getChar().mapX);
-            p.add16(client.getChar().mapY);
-            p.add16(client.getChar().orient);
+            //var p = new PacketCreator(0x0C);
+            //p.add32(client.accID);
+            //p.add16(mapid);
+            //p.add16(client.getChar().mapX);
+            //p.add16(client.getChar().mapY);
+            //p.add16(client.getChar().orient);
 
-            client.map.listPlayers.TryRemove(client.accID, out _);
-            client.map.BroadCast(client, p.send(), false);
+            //client.map.listPlayers.TryRemove(client.accID, out _);
+            //client.map.BroadCast(client, p.send(), false);
 
             client.reply(new PacketCreator(new byte[] { 20, 0x07 }).send());
             client.reply(new PacketCreator(new byte[] { 0x29, 0x0E }).send());
@@ -130,9 +130,7 @@ namespace TS_Server.Server
 
             if (!listMap.ContainsKey(mapid))
             {
-                TSMap m = new TSMap(this, mapid);
-                if (m != null)
-                    listMap.Add(mapid, new TSMap(this, mapid));
+                listMap.Add(mapid, new TSMap(this, mapid));
             }
 
             client.getChar().mapID = mapid;
