@@ -245,7 +245,7 @@ namespace TS_Server.Server
         {
             //Console.WriteLine("start_round " + countAlly);
             //Logger.Error(btThread.Name);
-            int dl = finish == 0 ? 800 : 100;
+            int dl = 300;
             System.Threading.Thread.Sleep(dl);
             executing = false;
             roundCount += 1;
@@ -1416,7 +1416,7 @@ namespace TS_Server.Server
             NpcInfo npcInfo = init.npc.getNpcInfo();
             bool init_type_ore = init.npc != null && npcInfo.type == 16; //npc แร่
             ushort sk_mining_id = 14010;
-            if (dest.type == TSConstants.BT_POS_TYPE_CHR && !dest.chr.client.disconnecting)
+            if (dest.type == TSConstants.BT_POS_TYPE_CHR)
             {
                 byte sk_mining_lv = dest.chr.skill.ContainsKey(sk_mining_id) ? dest.chr.skill[sk_mining_id] : (byte)0; //Level skill วิชาขุดแร่
                 bool allow_drop = true;
@@ -1438,7 +1438,7 @@ namespace TS_Server.Server
                     battleBroadcast(p.send());
                 }
             }
-            else if (dest.type == TSConstants.BT_POS_TYPE_PET && !dest.pet.owner.client.disconnecting)
+            else if (dest.type == TSConstants.BT_POS_TYPE_PET)
             {
                 byte sk_mining_lv = dest.pet.owner.skill.ContainsKey(sk_mining_id) ? dest.pet.owner.skill[sk_mining_id] : (byte)0; //Level skill วิชาขุดแร่
                 bool allow_drop = true;
@@ -1807,17 +1807,21 @@ namespace TS_Server.Server
 
             int[,] exp_gain = new int[2, 5];
             int[,] exp_soul_gain = new int[2, 5];
-            for (int i = 0; i < 2; i++)
-            {
-                for (int j = 0; j < 5; j++)
-                {
-                    BattleParticipant bp_npc = position[i][j];
-                    if (win && bp_npc != null && bp_npc.npc != null && bp_npc.type == TSConstants.BT_POS_TYPE_NPC && bp_npc.exist && battle_type == 3)
+            try {
+                for (int i = 0; i < 2; i++) {
+                    for (int j = 0; j < 5; j++)
                     {
-                        calcExp(ref exp_gain, ref exp_soul_gain, bp_npc, 0); //calc exp for attacker
-                        calcExp(ref exp_gain, ref exp_soul_gain, bp_npc, 1); //calc exp for killer
+                        BattleParticipant bp_npc = position[i][j];
+                        if (win && bp_npc != null && bp_npc.npc != null && bp_npc.type == TSConstants.BT_POS_TYPE_NPC && bp_npc.exist && battle_type == 3)
+                        {
+                            calcExp(ref exp_gain, ref exp_soul_gain, bp_npc, 0); //calc exp for attacker
+                            calcExp(ref exp_gain, ref exp_soul_gain, bp_npc, 1); //calc exp for killer
+                        }
                     }
                 }
+            }
+            catch (Exception e) {
+                Console.WriteLine(e.ToString());
             }
 
             sendCharExitView();
@@ -2152,7 +2156,7 @@ namespace TS_Server.Server
                     finish = 3;
                 }
             }
-            
+
             //send battle result to event
             if (chrLeader != null && chrLeader.myEvent != null && chrLeader.myEvent.clickId > 0)
             {
@@ -2176,32 +2180,32 @@ namespace TS_Server.Server
             aTimer.Stop();
             //aTimer.Dispose();
 
-            if (fly_to_save.Count() > 0) //บินกลับเซฟ
-            {
-                foreach(uint acc_id in fly_to_save)
-                {
-                    TSClient _cl = TSServer.getInstance().getPlayerById((int)acc_id);
-                    if(_cl != null)
-                    {
-                        TSCharacter _ch = _cl.getChar();
-                        if (_ch != null)
-                        {
-                            if(_ch.party != null)
-                            {
-                                if(_ch.party.leader_id == acc_id)
-                                {
-                                    _ch.party.Disband(_ch);
-                                }
-                                else
-                                {
-                                    _ch.party.LeaveTeam(_ch);
-                                }
-                            }
-                            _cl.sendWarpToXY(_ch.saved_map_id, _ch.saved_map_x, _ch.saved_map_y);
-                        }
-                    }
-                }
-            }
+            // if (fly_to_save.Count() > 0) //บินกลับเซฟ
+            // {
+            //     foreach(uint acc_id in fly_to_save)
+            //     {
+            //         TSClient _cl = TSServer.getInstance().getPlayerById((int)acc_id);
+            //         if(_cl != null)
+            //         {
+            //             TSCharacter _ch = _cl.getChar();
+            //             if (_ch != null)
+            //             {
+            //                 if(_ch.party != null)
+            //                 {
+            //                     if(_ch.party.leader_id == acc_id)
+            //                     {
+            //                         _ch.party.Disband(_ch);
+            //                     }
+            //                     else
+            //                     {
+            //                         _ch.party.LeaveTeam(_ch);
+            //                     }
+            //                 }
+            //                 _cl.sendWarpToXY(_ch.saved_map_id, _ch.saved_map_x, _ch.saved_map_y);
+            //             }
+            //         }
+            //     }
+            // }
         }
         /// <summary>
         /// type 0=Attacker, 1=Killer
